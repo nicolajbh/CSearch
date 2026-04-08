@@ -7,5 +7,8 @@
     string response = await client.GetStringAsync(baseUrl);
     Console.WriteLine("Response received");
     Console.WriteLine(response);
+
+    // TODO list of all categories
+    // TODO scrape a category
   }
 }
