@@ -2,8 +2,8 @@
 
 public interface IProduct
 {
-    string Site { get; }
-    string Name { get; }
-    string Price { get; }
-    string Page { get; }
+  string Site { get; }
+  string Name { get; }
+  string Price { get; }
+  string Url { get; }
 }
