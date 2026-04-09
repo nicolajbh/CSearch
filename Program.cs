@@ -1,14 +1,15 @@
 ﻿internal class Program
 {
-  private static readonly HttpClient client = new HttpClient();
-  static async Task Main(string[] args)
-  {
-    string baseUrl = "https://www.refurbed.dk/";
-    string response = await client.GetStringAsync(baseUrl);
-    Console.WriteLine("Response received");
-    Console.WriteLine(response);
+    private static readonly HttpClient client = new HttpClient();
 
-    // TODO list of all categories
-    // TODO scrape a category
-  }
+    static async Task Main(string[] args)
+    {
+        string baseUrl = "https://www.refurbed.dk/c/baerbare";
+        string response = await client.GetStringAsync(baseUrl);
+        Console.WriteLine("Response received");
+        Console.WriteLine(response);
+
+        // TODO list of all categories
+        // TODO scrape a category
+    }
 }
