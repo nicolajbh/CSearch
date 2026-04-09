@@ -1,0 +1,31 @@
+# Top-most EditorConfig file
+root = true
+
+# Standard settings for all files
+[*]
+indent_style = space
+indent_size = 4
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# C# Specifics
+[*.cs]
+
+# Use File-Scoped Namespaces (C# 10+)
+# This changes 'namespace MyProject { ... }' to 'namespace MyProject;'
+# It saves you an entire level of indentation across the whole file!
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# Newline and Brace preferences
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_prefer_braces = true:suggestion
+
+# Clean up 'using' statements
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = true
+
+# Avoid 'this.' unless necessary
+dotnet_style_qualification_for_field = false:silent
+dotnet_style_qualification_for_property = false:silent

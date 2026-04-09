@@ -15,6 +15,7 @@ internal class Program
 
     // List of urls to scrape
 
+    // Scrape
   }
 
   static async Task<int> FindMaxPageNum()
