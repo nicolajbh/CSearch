@@ -9,6 +9,7 @@ internal class Program
     static async Task Main(string[] args)
     {
         int maxPageNum = await FindMaxPageNum();
+        Console.WriteLine("Found 72 pages");
         Console.WriteLine($"\n--- Setup Complete. Starting Scraper with {maxPageNum} pages ---\n");
 
         Queue<string> urlQueue = new Queue<string>();
@@ -44,17 +45,46 @@ internal class Program
                     var doc = new HtmlDocument();
                     doc.LoadHtml(html);
 
-                    var products = doc.DocumentNode.SelectNodes("//article")?.Count ?? 0;
+                    var products = doc.DocumentNode.SelectNodes("//article")?.ToList() ?? [];
+                    string BaseUrl = "https://www.refurbed.dk";
+                    foreach (var product in products)
+                    {
+                        var title = product.SelectSingleNode(".//h3")?.InnerText.Trim() ?? "";
+                        var href = product.SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
+                        var url = $"{BaseUrl}{href}";
+
+                        var price = product
+                            .SelectSingleNode(".//div[contains(@class, 'text-emphasize-03')]")
+                            ?.InnerText.Trim() ?? "";
+
+                        var originalPriceNode = product.SelectSingleNode(".//del");
+                        var originalPrice = originalPriceNode?.InnerText.Trim();
+
+                        var specsDiv = product.SelectSingleNode(".//div[contains(@class, 'line-clamp-3')]");
+                        var specMap = new Dictionary<string, string?>();
+
+                        if (specsDiv != null)
+                        {
+                            foreach (var span in specsDiv.ChildNodes.Where(n => n.Name == "span"))
+                            {
+                                var spec = ParseSpec(span);
+
+                                if (spec.StartsWith("RAM"))
+                                    specMap["ram"] = spec.Replace("RAM", "").Trim();
+                                else if (spec.Contains("Hukommelsesplads"))
+                                    specMap["storage"] = spec.Replace("Hukommelsesplads", "").Trim();
+                            }
+                        }
+                        Console.WriteLine($"[THREAD {threadId}] Title: {title}. Price: {price}.");
+                    }
 
                     lock (counterLock)
                     {
-                        totalProductsFound += products;
+                        totalProductsFound += products.Count;
                     }
 
                     // forsinkelse fordi ???
-                    await Task.Delay(1000);
-
-                    Console.WriteLine($"[Thread {threadId}] FINISHED: Found {products} products.");
+                    // await Task.Delay(1000);
                 }
                 catch (Exception ex)
                 {
@@ -71,6 +101,14 @@ internal class Program
         await Task.WhenAll(workers);
         Console.WriteLine($"\n--- SCRAPING COMPLETE ---");
         Console.WriteLine($"Total Products Scraped: {totalProductsFound}");
+    }
+
+    static string ParseSpec(HtmlNode span)
+    {
+        var clone = span.CloneNode(deep: true);
+        var variants = clone.SelectSingleNode(".//span");
+        variants?.Remove();
+        return clone.InnerText.Trim().TrimEnd('|').Trim();
     }
 
     static async Task<int> FindMaxPageNum()
@@ -112,7 +150,6 @@ internal class Program
     static async Task<int> GetProductCount(int pageNum)
     {
         var url = $"https://www.refurbed.dk/search-results/?page={pageNum}&tile_type=electronics&page_type=category&category=2&sort_by=score";
-        Console.WriteLine($"Scraping page: {pageNum}");
         var html = await FetchHtml(url);
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
