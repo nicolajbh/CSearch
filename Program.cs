@@ -3,23 +3,74 @@ using HtmlAgilityPack;
 internal class Program
 {
     private static readonly HttpClient client = new HttpClient();
+    private static int totalProductsFound = 0;
+    private static readonly object counterLock = new object();
 
     static async Task Main(string[] args)
     {
-        // Find max page num
         int maxPageNum = await FindMaxPageNum();
-        Console.WriteLine($"Max page num: {maxPageNum}");
+        Console.WriteLine($"\n--- Setup Complete. Starting Scraper with {maxPageNum} pages ---\n");
 
-        // List of urls to scrape
         Queue<string> urlQueue = new Queue<string>();
         for (int i = 1; i <= maxPageNum; i++)
         {
             urlQueue.Enqueue($"https://www.refurbed.dk/search-results/?page={i}&tile_type=electronics&page_type=category&category=2&sort_by=score");
         }
 
-        // Scrape
+        // Semaphore to limit concurrency to 5
+        SemaphoreSlim semaphore = new SemaphoreSlim(5);
+        List<Task> workers = new List<Task>();
 
+        while (true)
+        {
+            string? currentUrl = null;
+            lock (urlQueue)
+            {
+                if (urlQueue.Count > 0) currentUrl = urlQueue.Dequeue();
+            }
 
+            if (currentUrl == null) break;
+
+            await semaphore.WaitAsync();
+
+            var task = Task.Run(async () =>
+            {
+                int threadId = Environment.CurrentManagedThreadId;
+                try
+                {
+                    Console.WriteLine($"[Thread {threadId}] STARTING: {currentUrl}");
+
+                    var html = await FetchHtml(currentUrl);
+                    var doc = new HtmlDocument();
+                    doc.LoadHtml(html);
+
+                    var products = doc.DocumentNode.SelectNodes("//article")?.Count ?? 0;
+
+                    lock (counterLock)
+                    {
+                        totalProductsFound += products;
+                    }
+
+                    // forsinkelse fordi ???
+                    await Task.Delay(1000);
+
+                    Console.WriteLine($"[Thread {threadId}] FINISHED: Found {products} products.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Thread {threadId}] ERROR: {ex.Message}");
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+            workers.Add(task);
+        }
+
+        await Task.WhenAll(workers);
+        Console.WriteLine($"\n--- SCRAPING COMPLETE ---");
+        Console.WriteLine($"Total Products Scraped: {totalProductsFound}");
     }
 
     static async Task<int> FindMaxPageNum()
