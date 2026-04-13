@@ -11,7 +11,7 @@ public record ScrapeJob : IScrapeJob
     public string NameSelector { get; }
     public string PriceSelector { get; }
     public string SpecsContainerSelector { get; }
-    public Dictionary<string, string> SpecKeywords { get; }
+    public Dictionary<string, string> SpecKeywords { get; } = new Dictionary<string, string>();
 
     public ScrapeJob(
         string siteName,
@@ -20,8 +20,7 @@ public record ScrapeJob : IScrapeJob
         string cardSelector,
         string nameSelector,
         string priceSelector,
-        string specsContainerSelector,
-        Dictionary<string, string> specKeywords
+        string specsContainerSelector
     )
     {
         SiteName = siteName;
@@ -31,6 +30,5 @@ public record ScrapeJob : IScrapeJob
         NameSelector = nameSelector;
         PriceSelector = priceSelector;
         SpecsContainerSelector = specsContainerSelector;
-        SpecKeywords = specKeywords;
     }
 }
