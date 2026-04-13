@@ -16,13 +16,13 @@ internal class Program
         };
 
         var job = new ScrapeJob(
-                    siteName: "refurbed.dk",
-                    baseUrl: "https://www.refurbed.dk",
-                    queryParams: "/search-results/?tile_type=electronics&page_type=category&category=2&sort_by=score",
-                    cardSelector: "//article",
-                    nameSelector: ".//h3",
-                    priceSelector: ".//div[contains(@class, 'text-emphasize-03')]",
-                    specsContainerSelector: ".//div[contains(@class, 'line-clamp-3')]"
+            siteName: "refurbed.dk",
+            baseUrl: "https://www.refurbed.dk",
+            queryParams: "/search-results/?tile_type=electronics&page_type=category&category=2&sort_by=score",
+            cardSelector: "//article",
+            nameSelector: ".//h3",
+            priceSelector: ".//div[contains(@class, 'text-emphasize-03')]",
+            specsContainerSelector: ".//div[contains(@class, 'line-clamp-3')]"
         );
 
         var client = new HttpClient();
