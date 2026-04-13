@@ -1,4 +1,5 @@
 using System.Text;
+
 using CSearch.Domain.Interface;
 
 namespace CSearch.Infrastructure.Data;

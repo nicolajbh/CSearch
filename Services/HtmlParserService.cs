@@ -27,8 +27,8 @@ public class HtmlParserService
                     job.SiteName,
                     name,
                     price,
-                    ram: specs.GetValueOrDefault("RAM") ?? "",
-                    storage: specs.GetValueOrDefault("STORAGE") ?? "",
+                    ram: specs["ram"] ?? "",
+                    storage: specs["storage"] ?? "",
                     url
                 )
             );
@@ -46,12 +46,11 @@ public class HtmlParserService
 
         foreach (var span in container.ChildNodes.Where(n => n.Name == "span"))
         {
-            var text = ParseSpec(span);
-            foreach (var (key, keyword) in job.SpecKeywords)
-            {
-                if (text.StartsWith(keyword))
-                    result[key] = text.Replace(keyword, "").Trim();
-            }
+            var spec = ParseSpec(span);
+            if (spec.StartsWith("RAM"))
+                result["ram"] = spec.Replace("RAM", "").Trim();
+            else if (spec.Contains("Hukommelsesplads"))
+                result["storage"] = spec.Replace("Hukommelsesplads", "").Trim();
         }
 
         return result;

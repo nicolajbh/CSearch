@@ -72,9 +72,6 @@ public class ScraperService
                     lock (resultLock)
                         allProducts.AddRange(products);
                     Interlocked.Add(ref _totalProductsFound, products.Count);
-
-                    // forsinkelse fordi ???
-                    // await Task.Delay(1000);
                 }
                 catch (Exception ex)
                 {
@@ -82,6 +79,7 @@ public class ScraperService
                 }
                 finally
                 {
+                    await Task.Delay(Random.Shared.Next(200, 500), cancellationToken);
                     semaphore.Release();
                 }
             });
