@@ -1,5 +1,6 @@
 using CSearch.Domain.Interface;
 using CSearch.Domain.Model;
+
 using HtmlAgilityPack;
 
 namespace CSearch;
@@ -26,8 +27,8 @@ public class HtmlParserService
                     job.SiteName,
                     name,
                     price,
-                    ram: specs.GetValueOrDefault("ram") ?? "",
-                    storage: specs.GetValueOrDefault("storage") ?? "",
+                    ram: specs.GetValueOrDefault("RAM") ?? "",
+                    storage: specs.GetValueOrDefault("STORAGE") ?? "",
                     url
                 )
             );

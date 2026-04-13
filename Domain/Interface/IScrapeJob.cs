@@ -9,5 +9,5 @@ public interface IScrapeJob
     string NameSelector { get; }
     string PriceSelector { get; }
     string SpecsContainerSelector { get; }
-    Dictionary<string, string> SpecKeywords { get; }
+    public Dictionary<string, string> SpecKeywords { get; }
 }

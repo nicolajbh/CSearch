@@ -4,7 +4,7 @@ namespace CSearch;
 
 public class ScraperService
 {
-    private static readonly HttpClient _client;
+    private readonly HttpClient _client;
     private readonly HtmlParserService _parser;
     private static int _totalProductsFound = 0;
 
@@ -84,6 +84,7 @@ public class ScraperService
         await Task.WhenAll(workers);
         Console.WriteLine($"\n--- SCRAPING COMPLETE ---");
         Console.WriteLine($"Total Products Scraped: {_totalProductsFound}");
+        return allProducts;
     }
 
 
@@ -121,7 +122,7 @@ public class ScraperService
         return result;
     }
 
-    static async Task<string> FetchHtml(string url, CancellationToken cancellationToken)
+    private async Task<string> FetchHtml(string url, CancellationToken cancellationToken)
     {
         var response = await _client.SendAsync(
                 new HttpRequestMessage(HttpMethod.Get, url),
