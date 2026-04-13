@@ -1,17 +1,15 @@
 using CSearch.Domain.Interface;
 using CSearch.Domain.Model;
-
 using HtmlAgilityPack;
 
 namespace CSearch;
 
 public class HtmlParserService
 {
-    List<IProduct> ParseProducts(string html, IScrapeJob job)
+    public List<IProduct> ParseProducts(string html, IScrapeJob job)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
-
         var cards = doc.DocumentNode.SelectNodes(job.CardSelector)?.ToList() ?? [];
         var products = new List<IProduct>();
 
@@ -21,11 +19,41 @@ public class HtmlParserService
             var price = card.SelectSingleNode(job.PriceSelector)?.InnerText.Trim() ?? "";
             var href = card.SelectSingleNode(".//a")?.GetAttributeValue("href", "") ?? "";
             var url = $"{job.BaseUrl}{href}";
+            var specs = ParseSpecs(card, job);
 
-            products.Add(new Product(job.SiteName, name, price, url));
+            products.Add(
+                new Product(
+                    job.SiteName,
+                    name,
+                    price,
+                    ram: specs.GetValueOrDefault("ram") ?? "",
+                    storage: specs.GetValueOrDefault("storage") ?? "",
+                    url
+                )
+            );
         }
 
         return products;
+    }
+
+    private Dictionary<string, string?> ParseSpecs(HtmlNode card, IScrapeJob job)
+    {
+        var result = new Dictionary<string, string?>();
+        var container = card.SelectSingleNode(job.SpecsContainerSelector);
+        if (container == null)
+            return result;
+
+        foreach (var span in container.ChildNodes.Where(n => n.Name == "span"))
+        {
+            var text = ParseSpec(span);
+            foreach (var (key, keyword) in job.SpecKeywords)
+            {
+                if (text.StartsWith(keyword))
+                    result[key] = text.Replace(keyword, "").Trim();
+            }
+        }
+
+        return result;
     }
 
     public int CountProducts(string html, IScrapeJob job)

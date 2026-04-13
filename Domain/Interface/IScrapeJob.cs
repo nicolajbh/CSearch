@@ -1,4 +1,4 @@
-﻿namespace CSearch.Domain.Interface;
+namespace CSearch.Domain.Interface;
 
 public interface IScrapeJob
 {
@@ -8,4 +8,6 @@ public interface IScrapeJob
     string CardSelector { get; }
     string NameSelector { get; }
     string PriceSelector { get; }
+    string SpecsContainerSelector { get; }
+    Dictionary<string, string> SpecKeywords { get; }
 }

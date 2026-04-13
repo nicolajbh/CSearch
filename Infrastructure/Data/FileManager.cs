@@ -17,13 +17,13 @@ public static class FileManager
         {
             if (!headerWritten)
             {
-                lines.Add("Site,Name,Price,CPU,RAM,Storage,Url");
+                lines.Add("Site,Name,Price,RAM,Storage,Url");
                 headerWritten = true;
             }
 
             foreach (var p in products)
                 lines.Add(
-                    $"{Escape(p.Site)},{Escape(p.Name)},{Escape(p.Price)},{Escape(p.CPU)},{Escape(p.RAM)},{Escape(p.Storage)},{Escape(p.Url)}"
+                    $"{Escape(p.Site)},{Escape(p.Name)},{Escape(p.Price)},{Escape(p.RAM)},{Escape(p.Storage)},{Escape(p.Url)}"
                 );
 
             File.AppendAllLines(_outputPath, lines, Encoding.UTF8);

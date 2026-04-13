@@ -1,4 +1,4 @@
-﻿using CSearch.Domain.Interface;
+using CSearch.Domain.Interface;
 
 namespace CSearch.Domain.Model;
 
@@ -10,6 +10,8 @@ public record ScrapeJob : IScrapeJob
     public string CardSelector { get; }
     public string NameSelector { get; }
     public string PriceSelector { get; }
+    public string SpecsContainerSelector { get; }
+    public Dictionary<string, string> SpecKeywords { get; }
 
     public ScrapeJob(
         string siteName,
@@ -17,7 +19,9 @@ public record ScrapeJob : IScrapeJob
         string queryParams,
         string cardSelector,
         string nameSelector,
-        string priceSelector
+        string priceSelector,
+        string specsContainerSelector,
+        Dictionary<string, string> specKeywords
     )
     {
         SiteName = siteName;
@@ -26,5 +30,7 @@ public record ScrapeJob : IScrapeJob
         CardSelector = cardSelector;
         NameSelector = nameSelector;
         PriceSelector = priceSelector;
+        SpecsContainerSelector = specsContainerSelector;
+        SpecKeywords = specKeywords;
     }
 }
