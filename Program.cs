@@ -23,6 +23,7 @@ internal class Program
                     nameSelector: ".//h3",
                     priceSelector: ".//div[contains(@class, 'text-emphasize-03')]",
                     specsContainerSelector: ".//div[contains(@class, 'line-clamp-3')]"
+
         );
 
         var client = new HttpClient();

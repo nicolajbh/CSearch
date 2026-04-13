@@ -1,4 +1,5 @@
 using System.Text;
+
 using CSearch.Domain.Interface;
 
 namespace CSearch.Infrastructure.Data;
@@ -22,11 +23,13 @@ public static class FileManager
             }
 
             foreach (var p in products)
+            {
                 lines.Add(
                     $"{Escape(p.Site)},{Escape(p.Name)},{Escape(p.Price)},{Escape(p.RAM)},{Escape(p.Storage)},{Escape(p.Url)}"
                 );
 
-            File.AppendAllLines(_outputPath, lines, Encoding.UTF8);
+                File.AppendAllLines(_outputPath, lines, Encoding.UTF8);
+            }
         }
     }
 
