@@ -7,25 +7,15 @@ public record Product : IProduct
     public string Site { get; }
     public string Name { get; }
     public string Price { get; }
-    public string CPU { get; }
     public string RAM { get; }
     public string Storage { get; }
     public string Url { get; }
 
-    public Product(
-        string site,
-        string name,
-        string price,
-        string cpu,
-        string ram,
-        string storage,
-        string url
-    )
+    public Product(string site, string name, string price, string ram, string storage, string url)
     {
         Site = site;
         Name = name;
         Price = price;
-        CPU = cpu;
         RAM = ram;
         Storage = storage;
         Url = url;
