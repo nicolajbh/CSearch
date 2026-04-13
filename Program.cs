@@ -6,6 +6,21 @@ internal class Program
 {
     static async Task Main(string[] args)
     {
+        Console.WriteLine("CSearch");
+        Console.WriteLine("=======");
+        Console.WriteLine("1. Scrape refurbed.dk");
+        Console.WriteLine("2. Search products.csv");
+        Console.Write("\nChoose [1/2]: ");
+
+        var choice = Console.ReadLine()?.Trim();
+
+        if (choice == "2")
+        {
+            var search = new SearchService();
+            search.Run();
+            return;
+        }
+
         using var cts = new CancellationTokenSource();
 
         Console.CancelKeyPress += (_, e) =>
@@ -16,14 +31,13 @@ internal class Program
         };
 
         var job = new ScrapeJob(
-                    siteName: "refurbed.dk",
-                    baseUrl: "https://www.refurbed.dk",
-                    queryParams: "/search-results/?tile_type=electronics&page_type=category&category=2&sort_by=score",
-                    cardSelector: "//article",
-                    nameSelector: ".//h3",
-                    priceSelector: ".//div[contains(@class, 'text-emphasize-03')]",
-                    specsContainerSelector: ".//div[contains(@class, 'line-clamp-3')]"
-
+            siteName: "refurbed.dk",
+            baseUrl: "https://www.refurbed.dk",
+            queryParams: "/search-results/?tile_type=electronics&page_type=category&category=2&sort_by=score",
+            cardSelector: "//article",
+            nameSelector: ".//h3",
+            priceSelector: ".//div[contains(@class, 'text-emphasize-03')]",
+            specsContainerSelector: ".//div[contains(@class, 'line-clamp-3')]"
         );
 
         var client = new HttpClient();
