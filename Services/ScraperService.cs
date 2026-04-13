@@ -1,6 +1,6 @@
 using CSearch.Domain.Interface;
 
-namespace CSearch;
+namespace CSearch.Services;
 
 public class ScraperService
 {
@@ -14,8 +14,11 @@ public class ScraperService
         _parser = parser;
     }
 
-
-    public async Task<List<IProduct>> Scrape(IScrapeJob job, int concurrency, CancellationToken cancellationToken = default)
+    public async Task<List<IProduct>> Scrape(
+        IScrapeJob job,
+        int concurrency,
+        CancellationToken cancellationToken = default
+    )
     {
         int maxPageNum = await FindMaxPageNum(job, cancellationToken);
         Console.WriteLine($"\nSetup Complete. Starting Scraper with {maxPageNum} pages\n");
@@ -30,22 +33,24 @@ public class ScraperService
         var queueLock = new object();
         var resultLock = new object();
 
-
         SemaphoreSlim semaphore = new SemaphoreSlim(concurrency);
         List<Task> workers = new List<Task>();
 
         while (true)
         {
-            if (cancellationToken.IsCancellationRequested) break;
+            if (cancellationToken.IsCancellationRequested)
+                break;
 
             string? currentUrl = null;
 
             lock (queueLock)
             {
-                if (urlQueue.Count > 0) currentUrl = urlQueue.Dequeue();
+                if (urlQueue.Count > 0)
+                    currentUrl = urlQueue.Dequeue();
             }
 
-            if (currentUrl == null) break;
+            if (currentUrl == null)
+                break;
 
             await semaphore.WaitAsync();
 
@@ -64,7 +69,8 @@ public class ScraperService
                         Console.WriteLine($"[Thread {threadId}] {product.Name} - {product.Price}");
                     }
 
-                    lock (resultLock) allProducts.AddRange(products);
+                    lock (resultLock)
+                        allProducts.AddRange(products);
                     Interlocked.Add(ref _totalProductsFound, products.Count);
 
                     // forsinkelse fordi ???
@@ -86,10 +92,11 @@ public class ScraperService
         Console.WriteLine($"Total Products Scraped: {_totalProductsFound}");
     }
 
-
     private async Task<int> FindMaxPageNum(IScrapeJob job, CancellationToken cancellationToken)
     {
-        int low = 1, high = 1000, result = 1;
+        int low = 1,
+            high = 1000,
+            result = 1;
 
         while (low <= high)
         {
@@ -124,9 +131,9 @@ public class ScraperService
     static async Task<string> FetchHtml(string url, CancellationToken cancellationToken)
     {
         var response = await _client.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, url),
-                cancellationToken
-                );
+            new HttpRequestMessage(HttpMethod.Get, url),
+            cancellationToken
+        );
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 }
