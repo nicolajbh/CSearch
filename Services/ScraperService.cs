@@ -14,7 +14,7 @@ public class ScraperService
         _parser = parser;
     }
 
-    public async Task<IEnumerable<IProduct>> Scrape(
+    public async Task<List<IProduct>> Scrape(
         IScrapeJob job,
         int concurrency,
         CancellationToken cancellationToken = default
