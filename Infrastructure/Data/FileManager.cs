@@ -1,5 +1,5 @@
 using System.Text;
-using CSearch.Domain.Model;
+using CSearch.Domain.Interface;
 
 namespace CSearch.Infrastructure.Data;
 
@@ -9,7 +9,7 @@ public static class FileManager
     private static readonly object fileLock = new object();
     private static bool headerWritten = false;
 
-    public static void SaveProducts(IEnumerable<Product> products)
+    public static void SaveProducts(List<IProduct> products)
     {
         var lines = new List<string>();
 
