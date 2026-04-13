@@ -1,5 +1,6 @@
-using CSearch;
 using CSearch.Domain.Model;
+using CSearch.Infrastructure.Data;
+using CSearch.Services;
 
 internal class Program
 {
@@ -30,5 +31,6 @@ internal class Program
 
         var products = await scraper.Scrape(job, concurrency: 5, cts.Token);
         Console.WriteLine($"Finished scraping. Found {products.Count} products.");
+        FileManager.SaveProducts(products);
     }
 }

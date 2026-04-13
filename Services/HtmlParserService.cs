@@ -3,7 +3,7 @@ using CSearch.Domain.Model;
 
 using HtmlAgilityPack;
 
-namespace CSearch;
+namespace CSearch.Services;
 
 public class HtmlParserService
 {
