@@ -6,7 +6,7 @@ public class ScraperService
 {
     private readonly HttpClient _client;
     private readonly HtmlParserService _parser;
-    private static int _totalProductsFound = 0;
+    private int _totalProductsFound = 0;
 
     public ScraperService(HttpClient client, HtmlParserService parser)
     {
@@ -43,52 +43,73 @@ public class ScraperService
 
             string? currentUrl = null;
 
+            // lock to ensure only one thread accesses queue at a time
             lock (queueLock)
             {
                 if (urlQueue.Count > 0)
                     currentUrl = urlQueue.Dequeue();
             }
 
-            if (currentUrl == null)
-                break;
+            if (currentUrl == null) break;
 
-            await semaphore.WaitAsync();
+            // semaphore limits how many threads run concurrently
+            await semaphore.WaitAsync(cancellationToken);
 
-            var task = Task.Run(async () =>
-            {
-                int threadId = Environment.CurrentManagedThreadId;
-                try
-                {
-                    Console.WriteLine($"[Thread {threadId}] STARTING: {currentUrl}");
-
-                    var html = await FetchHtml(currentUrl, cancellationToken);
-                    var products = _parser.ParseProducts(html, job);
-
-                    foreach (var product in products)
-                    {
-                        Console.WriteLine($"[Thread {threadId}] {product.Name} - {product.Price}");
-                    }
-
-                    lock (resultLock)
-                        allProducts.AddRange(products);
-                    Interlocked.Add(ref _totalProductsFound, products.Count);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Thread {threadId}] ERROR: {ex.Message}");
-                }
-                finally
-                {
-                    await Task.Delay(Random.Shared.Next(200, 500), cancellationToken);
-                    semaphore.Release();
-                }
-            });
+            var task = ProcessUrl(
+                    currentUrl,
+                    job,
+                    allProducts,
+                    resultLock,
+                    semaphore,
+                    cancellationToken
+                );
             workers.Add(task);
         }
         await Task.WhenAll(workers);
         Console.WriteLine($"\n--- SCRAPING COMPLETE ---");
         Console.WriteLine($"Total Products Scraped: {_totalProductsFound}");
         return allProducts;
+    }
+
+    private async Task ProcessUrl(
+            string url,
+            IScrapeJob job,
+            List<IProduct> allProducts,
+            object resultLock,
+            SemaphoreSlim semaphore,
+            CancellationToken cancellationToken
+            )
+    {
+        int threadId = Environment.CurrentManagedThreadId;
+        try
+        {
+            Console.WriteLine($"[Thread {threadId}] STARTING: {url}");
+
+            var html = await FetchHtml(url, cancellationToken);
+            var products = _parser.ParseProducts(html, job);
+
+            foreach (var product in products)
+            {
+                Console.WriteLine($"[Thread {threadId}] {product.Name} - {product.Price}");
+            }
+
+            lock (resultLock)
+            {
+                allProducts.AddRange(products);
+            }
+
+            // interlocked ensures thread safe increment
+            Interlocked.Add(ref _totalProductsFound, products.Count);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Thread {threadId}] ERROR: {ex.Message}");
+        }
+        finally
+        {
+            await Task.Delay(Random.Shared.Next(500, 1000), cancellationToken);
+            semaphore.Release();
+        }
     }
 
     private async Task<int> FindMaxPageNum(IScrapeJob job, CancellationToken cancellationToken)
