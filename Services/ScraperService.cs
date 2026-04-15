@@ -14,13 +14,13 @@ public class ScraperService
         _parser = parser;
     }
 
-    public async Task<List<IProduct>> Scrape(
+    public Task<List<IProduct>> Scrape(
         IScrapeJob job,
         int concurrency,
         CancellationToken cancellationToken = default
     )
     {
-        int maxPageNum = await FindMaxPageNum(job, cancellationToken);
+        int maxPageNum = FindMaxPageNum(job, cancellationToken).GetAwaiter().GetResult();
         Console.WriteLine($"\nSetup Complete. Starting Scraper with {maxPageNum} pages\n");
 
         Queue<string> urlQueue = new Queue<string>();
@@ -32,73 +32,77 @@ public class ScraperService
         var allProducts = new List<IProduct>();
         var queueLock = new object();
         var resultLock = new object();
+        List<Thread> workers = new List<Thread>();
 
-        SemaphoreSlim semaphore = new SemaphoreSlim(concurrency);
-        List<Task> workers = new List<Task>();
-
-        while (true)
+        var tcs = new TaskCompletionSource<List<IProduct>>();
+        Thread manager = new Thread(() =>
         {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            string? currentUrl = null;
-
-            // lock to ensure only one thread accesses queue at a time
-            lock (queueLock)
+            try
             {
-                if (urlQueue.Count > 0)
-                    currentUrl = urlQueue.Dequeue();
+                for (int i = 0; i < concurrency; i++)
+                {
+                    Thread worker = new Thread(() =>
+                    {
+                        while (true)
+                        {
+                            if (cancellationToken.IsCancellationRequested) break;
+
+                            string? currentUrl = null;
+                            lock (queueLock)
+                            {
+                                if (urlQueue.Count > 0)
+                                    currentUrl = urlQueue.Dequeue();
+                            }
+
+                            if (currentUrl == null) break;
+
+                            ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
+                        }
+                    });
+
+                    worker.Name = $"Scraper-Worker-{i}";
+                    workers.Add(worker);
+                    worker.Start();
+                }
+
+                foreach (var worker in workers)
+                {
+                    worker.Join();
+                }
+
+                tcs.SetResult(allProducts);
             }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
 
-            if (currentUrl == null) break;
-
-            // semaphore limits how many threads run concurrently
-            await semaphore.WaitAsync(cancellationToken);
-
-            var task = ProcessUrl(
-                    currentUrl,
-                    job,
-                    allProducts,
-                    resultLock,
-                    semaphore,
-                    cancellationToken
-                );
-            workers.Add(task);
-        }
-        await Task.WhenAll(workers);
-        Console.WriteLine($"\n--- SCRAPING COMPLETE ---");
-        Console.WriteLine($"Total Products Scraped: {_totalProductsFound}");
-        return allProducts;
+        manager.Start();
+        return tcs.Task;
     }
 
-    private async Task ProcessUrl(
-            string url,
-            IScrapeJob job,
-            List<IProduct> allProducts,
-            object resultLock,
-            SemaphoreSlim semaphore,
-            CancellationToken cancellationToken
-            )
+    private void ProcessUrl(
+        string url,
+        IScrapeJob job,
+        List<IProduct> allProducts,
+        object resultLock,
+        CancellationToken cancellationToken
+    )
     {
         int threadId = Environment.CurrentManagedThreadId;
         try
         {
-            Console.WriteLine($"[Thread {threadId}] STARTING: {url}");
+            Console.WriteLine($"[Thread {threadId}] FETCHING: {url}");
+            var response = _client.GetAsync(url, cancellationToken).GetAwaiter().GetResult();
+            var html = response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
 
-            var html = await FetchHtml(url, cancellationToken);
             var products = _parser.ParseProducts(html, job);
-
-            foreach (var product in products)
-            {
-                Console.WriteLine($"[Thread {threadId}] {product.Name} - {product.Price}");
-            }
-
             lock (resultLock)
             {
                 allProducts.AddRange(products);
             }
 
-            // interlocked ensures thread safe increment
             Interlocked.Add(ref _totalProductsFound, products.Count);
         }
         catch (Exception ex)
@@ -107,53 +111,23 @@ public class ScraperService
         }
         finally
         {
-            await Task.Delay(Random.Shared.Next(500, 1000), cancellationToken);
-            semaphore.Release();
+            Thread.Sleep(Random.Shared.Next(500, 1000));
         }
     }
 
     private async Task<int> FindMaxPageNum(IScrapeJob job, CancellationToken cancellationToken)
     {
-        int low = 1,
-            high = 1000,
-            result = 1;
-
+        int low = 1, high = 1000, result = 1;
         while (low <= high)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
+            if (cancellationToken.IsCancellationRequested) break;
             int mid = low + (high - low) / 2;
-            var url = $"{job.BaseUrl}{job.QueryParams}&page={mid}";
-            var html = await FetchHtml(url, cancellationToken);
-
+            var response = await _client.GetAsync($"{job.BaseUrl}{job.QueryParams}&page={mid}", cancellationToken);
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
             var count = _parser.CountProducts(html, job);
-            Console.WriteLine($"Page {mid}: {count} products");
-
-            if (count == 0)
-            {
-                // Page is empty, max is somewhere below
-                high = mid - 1;
-            }
-            else
-            {
-                // Page has products, so this is a valid page
-                result = mid;
-                if (count < 16)
-                    break; // Partial page = last page, stop early
-                else
-                    low = mid + 1;
-            }
+            if (count == 0) high = mid - 1;
+            else { result = mid; if (count < 16) break; else low = mid + 1; }
         }
-
         return result;
-    }
-
-    private async Task<string> FetchHtml(string url, CancellationToken cancellationToken)
-    {
-        var response = await _client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, url),
-            cancellationToken
-        );
-        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 }
