@@ -10,6 +10,7 @@ public class ScraperService
 
     private readonly Queue<string> _urlQueue = new Queue<string>();
     private readonly List<IProduct> _allProducts = new List<IProduct>();
+
     private readonly object _queueLock = new object();
     private readonly object _resultLock = new object();
 
