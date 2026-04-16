@@ -4,7 +4,7 @@ using CSearch.Services;
 
 internal class Program
 {
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
         Console.WriteLine("CSearch");
         Console.WriteLine("=======");
