@@ -34,7 +34,7 @@ public class ScraperService
 
 
         List<Thread> threads = new List<Thread>();
-        using Semaphore threadLimiter = new Semaphore(concurrency, concurrency);
+        using Semaphore semaphore = new Semaphore(concurrency, concurrency);
 
         while (true)
         {
@@ -48,7 +48,7 @@ public class ScraperService
                 currentUrl = _urlQueue.Dequeue();
             }
 
-            threadLimiter.WaitOne();
+            semaphore.WaitOne();
 
             Thread thread = new Thread(() =>
                         {
@@ -58,7 +58,7 @@ public class ScraperService
                             }
                             finally
                             {
-                                threadLimiter.Release();
+                                semaphore.Release();
                             }
                         });
 
