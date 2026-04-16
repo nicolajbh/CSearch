@@ -10,7 +10,8 @@ public class ScraperService
 
     private readonly Queue<string> _urlQueue = new Queue<string>();
     private readonly List<IProduct> _allProducts = new List<IProduct>();
-    private readonly object _lockObj = new object();
+    private readonly object _queueLock = new object();
+    private readonly object _resultLock = new object();
 
     public ScraperService(HttpClient client, HtmlParserService parser)
     {
@@ -42,7 +43,7 @@ public class ScraperService
 
             string? currentUrl = null;
 
-            lock (_lockObj)
+            lock (_queueLock)
             {
                 if (_urlQueue.Count == 0) break;
                 currentUrl = _urlQueue.Dequeue();
@@ -88,7 +89,7 @@ public class ScraperService
             var html = response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
             var products = _parser.ParseProducts(html, job);
 
-            lock (_lockObj)
+            lock (_resultLock)
             {
                 _allProducts.AddRange(products);
             }
