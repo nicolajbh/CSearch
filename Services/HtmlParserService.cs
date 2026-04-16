@@ -22,16 +22,16 @@ public class HtmlParserService
             var url = $"{job.BaseUrl}{href}";
             var specs = ParseSpecs(card, job);
 
-            products.Add(
-                new Product(
+            var product = new Product(
                     job.SiteName,
                     name,
                     price,
                     ram: specs["ram"] ?? "",
                     storage: specs["storage"] ?? "",
                     url
-                )
-            );
+                    );
+            Console.WriteLine($"[THREAD {Environment.CurrentManagedThreadId}] - Found {product.Name}");
+            products.Add(product);
         }
 
         return products;

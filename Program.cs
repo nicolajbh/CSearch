@@ -44,7 +44,7 @@ internal class Program
         var parser = new HtmlParserService();
         var scraper = new ScraperService(client, parser);
 
-        var products = await scraper.Scrape(job, concurrency: 5, cts.Token);
+        var products = scraper.Scrape(job, concurrency: 5, cts.Token);
         Console.WriteLine($"Finished scraping. Found {products.Count} products.");
         FileManager.SaveProducts(products);
     }

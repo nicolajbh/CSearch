@@ -14,13 +14,13 @@ public class ScraperService
         _parser = parser;
     }
 
-    public Task<List<IProduct>> Scrape(
+    public List<IProduct> Scrape(
         IScrapeJob job,
         int concurrency,
         CancellationToken cancellationToken = default
     )
     {
-        int maxPageNum = FindMaxPageNum(job, cancellationToken).GetAwaiter().GetResult();
+        int maxPageNum = FindMaxPageNum(job, cancellationToken);
         Console.WriteLine($"\nSetup Complete. Starting Scraper with {maxPageNum} pages\n");
 
         Queue<string> urlQueue = new Queue<string>();
@@ -32,54 +32,40 @@ public class ScraperService
         var allProducts = new List<IProduct>();
         var queueLock = new object();
         var resultLock = new object();
-        List<Thread> workers = new List<Thread>();
+        List<Thread> threads = new List<Thread>();
 
-        var tcs = new TaskCompletionSource<List<IProduct>>();
-        Thread manager = new Thread(() =>
+        for (int i = 0; i < concurrency; i++)
         {
-            try
+            Thread thread = new Thread(() =>
             {
-                for (int i = 0; i < concurrency; i++)
+                while (true)
                 {
-                    Thread worker = new Thread(() =>
+                    if (cancellationToken.IsCancellationRequested) break;
+
+                    string? currentUrl = null;
+                    lock (queueLock)
                     {
-                        while (true)
-                        {
-                            if (cancellationToken.IsCancellationRequested) break;
+                        if (urlQueue.Count > 0)
+                            currentUrl = urlQueue.Dequeue();
+                    }
 
-                            string? currentUrl = null;
-                            lock (queueLock)
-                            {
-                                if (urlQueue.Count > 0)
-                                    currentUrl = urlQueue.Dequeue();
-                            }
+                    if (currentUrl == null) break;
 
-                            if (currentUrl == null) break;
-
-                            ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
-                        }
-                    });
-
-                    worker.Name = $"Scraper-Worker-{i}";
-                    workers.Add(worker);
-                    worker.Start();
+                    ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
                 }
+            });
 
-                foreach (var worker in workers)
-                {
-                    worker.Join();
-                }
+            thread.Name = $"Scraper-Worker-{i}";
+            threads.Add(thread);
+            thread.Start();
+        }
 
-                tcs.SetResult(allProducts);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-            }
-        });
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
 
-        manager.Start();
-        return tcs.Task;
+        return allProducts;
     }
 
     private void ProcessUrl(
@@ -115,18 +101,29 @@ public class ScraperService
         }
     }
 
-    private async Task<int> FindMaxPageNum(IScrapeJob job, CancellationToken cancellationToken)
+    private int FindMaxPageNum(IScrapeJob job, CancellationToken cancellationToken)
     {
         int low = 1, high = 1000, result = 1;
         while (low <= high)
         {
             if (cancellationToken.IsCancellationRequested) break;
             int mid = low + (high - low) / 2;
-            var response = await _client.GetAsync($"{job.BaseUrl}{job.QueryParams}&page={mid}", cancellationToken);
-            var html = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            var url = $"{job.BaseUrl}{job.QueryParams}&page={mid}";
+            var response = _client.GetAsync(url, cancellationToken).GetAwaiter().GetResult();
+            var html = response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+
             var count = _parser.CountProducts(html, job);
-            if (count == 0) high = mid - 1;
-            else { result = mid; if (count < 16) break; else low = mid + 1; }
+            if (count == 0)
+            {
+                high = mid - 1;
+            }
+            else
+            {
+                result = mid;
+                if (count < 16) break;
+                else low = mid + 1;
+            }
         }
         return result;
     }
