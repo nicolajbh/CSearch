@@ -8,6 +8,10 @@ public class ScraperService
     private readonly HtmlParserService _parser;
     private int _totalProductsFound = 0;
 
+    private readonly Queue<string> _urlQueue = new Queue<string>();
+    private readonly List<IProduct> _allProducts = new List<IProduct>();
+    private readonly object _lockObj = new object();
+
     public ScraperService(HttpClient client, HtmlParserService parser)
     {
         _client = client;
@@ -23,74 +27,56 @@ public class ScraperService
         int maxPageNum = FindMaxPageNum(job, cancellationToken);
         Console.WriteLine($"\nSetup Complete. Starting Scraper with {maxPageNum} pages\n");
 
-        Queue<string> urlQueue = new Queue<string>();
         for (int i = 1; i <= maxPageNum; i++)
         {
-            urlQueue.Enqueue($"{job.BaseUrl}{job.QueryParams}&page={i}");
+            _urlQueue.Enqueue($"{job.BaseUrl}{job.QueryParams}&page={i}");
         }
 
-        var allProducts = new List<IProduct>();
-        var queueLock = new object();
-        var resultLock = new object();
 
-        int activeThreads = 0;
+        List<Thread> threads = new List<Thread>();
+        using Semaphore threadLimiter = new Semaphore(concurrency, concurrency);
 
         while (true)
         {
             if (cancellationToken.IsCancellationRequested) break;
 
-            bool isQueueEmpty = false;
-
-            lock (queueLock)
-            {
-                isQueueEmpty = urlQueue.Count == 0;
-            }
-
-            if (isQueueEmpty && activeThreads == 0) break;
-
-            //
-            if (activeThreads >= concurrency || isQueueEmpty)
-            {
-                Thread.Sleep(100);
-                continue;
-            }
             string? currentUrl = null;
 
-            lock (queueLock)
+            lock (_lockObj)
             {
-                if (urlQueue.Count > 0)
-                {
-                    currentUrl = urlQueue.Dequeue();
-                }
+                if (_urlQueue.Count == 0) break;
+                currentUrl = _urlQueue.Dequeue();
             }
 
+            threadLimiter.WaitOne();
 
-            if (currentUrl != null)
-            {
-                Interlocked.Increment(ref activeThreads);
-                Thread thread = new Thread(() =>
+            Thread thread = new Thread(() =>
                         {
                             try
                             {
-                                ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
+                                ProcessUrl(currentUrl, job, cancellationToken);
                             }
                             finally
                             {
-                                Interlocked.Decrement(ref activeThreads);
+                                threadLimiter.Release();
                             }
                         });
-                thread.Start();
-            }
+
+            threads.Add(thread);
+            thread.Start();
         }
 
-        return allProducts;
+        foreach (var t in threads)
+        {
+            t.Join();
+        }
+
+        return _allProducts;
     }
 
     private void ProcessUrl(
         string url,
         IScrapeJob job,
-        List<IProduct> allProducts,
-        object resultLock,
         CancellationToken cancellationToken
     )
     {
@@ -100,11 +86,11 @@ public class ScraperService
             Console.WriteLine($"[Thread {threadId}] FETCHING: {url}");
             var response = _client.GetAsync(url, cancellationToken).GetAwaiter().GetResult();
             var html = response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
-
             var products = _parser.ParseProducts(html, job);
-            lock (resultLock)
+
+            lock (_lockObj)
             {
-                allProducts.AddRange(products);
+                _allProducts.AddRange(products);
             }
 
             Interlocked.Add(ref _totalProductsFound, products.Count);
