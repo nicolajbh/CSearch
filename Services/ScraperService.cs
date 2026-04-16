@@ -32,37 +32,54 @@ public class ScraperService
         var allProducts = new List<IProduct>();
         var queueLock = new object();
         var resultLock = new object();
-        List<Thread> threads = new List<Thread>();
 
-        for (int i = 0; i < concurrency; i++)
+        int activeThreads = 0;
+
+        while (true)
         {
-            Thread thread = new Thread(() =>
+            if (cancellationToken.IsCancellationRequested) break;
+
+            bool isQueueEmpty = false;
+
+            lock (queueLock)
             {
-                while (true)
+                isQueueEmpty = urlQueue.Count == 0;
+            }
+
+            if (isQueueEmpty && activeThreads == 0) break;
+
+            if (activeThreads >= concurrency || isQueueEmpty)
+            {
+                Thread.Sleep(100);
+                continue;
+            }
+            string? currentUrl = null;
+
+            lock (queueLock)
+            {
+                if (urlQueue.Count > 0)
                 {
-                    if (cancellationToken.IsCancellationRequested) break;
-
-                    string? currentUrl = null;
-                    lock (queueLock)
-                    {
-                        if (urlQueue.Count > 0)
-                            currentUrl = urlQueue.Dequeue();
-                    }
-
-                    if (currentUrl == null) break;
-
-                    ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
+                    currentUrl = urlQueue.Dequeue();
                 }
-            });
+            }
 
-            thread.Name = $"Scraper-Worker-{i}";
-            threads.Add(thread);
-            thread.Start();
-        }
 
-        foreach (var thread in threads)
-        {
-            thread.Join();
+            if (currentUrl != null)
+            {
+                Interlocked.Increment(ref activeThreads);
+                Thread thread = new Thread(() =>
+                        {
+                            try
+                            {
+                                ProcessUrl(currentUrl, job, allProducts, resultLock, cancellationToken);
+                            }
+                            finally
+                            {
+                                Interlocked.Decrement(ref activeThreads);
+                            }
+                        });
+                thread.Start();
+            }
         }
 
         return allProducts;
