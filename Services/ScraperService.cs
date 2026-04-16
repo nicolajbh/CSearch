@@ -48,6 +48,7 @@ public class ScraperService
 
             if (isQueueEmpty && activeThreads == 0) break;
 
+            //
             if (activeThreads >= concurrency || isQueueEmpty)
             {
                 Thread.Sleep(100);
